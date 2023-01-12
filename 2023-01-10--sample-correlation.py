@@ -92,9 +92,11 @@ for y_pos, (wtp1, date1) in enumerate(labels):
 
         if x_pos > y_pos and False:
             # make it triangular
-            unweighted_row.append(math.nan)
-            mean_weighted_row.append(math.nan)
-            mean2_weighted_row.append(math.nan)
+            unweighted_row.append(0)
+            mean_weighted_row.append(0)
+            mean2_weighted_row.append(0)
+            if wtp1 == wtp2:
+                wtp_row.append(0)
             continue
 
         count = global_corr_count[key]
@@ -145,14 +147,42 @@ for data, name, use_labels in datasets[:]:
             log_row.append(val)
         log_data.append(log_row)
     datasets.append([log_data, "%s log" % name, use_labels])
+
+for data, name, use_labels in datasets[:]:
+    if len(use_labels) != len(labels):
+        continue
+    
+    indexes = [(date, oldindex, wtp)
+               for (oldindex, (wtp, date)) in enumerate(labels)]
+    indexes.sort()
+
+    new_data = []
+    for i in range(len(data)):
+        new_data.append([])
+        for j in range(len(data[i])):
+            new_data[i].append(0)
+
+    for newindex_1, (date_1, oldindex_1, wtp_1) in enumerate(indexes):
+        for newindex_2, (date_2, oldindex_2, wtp_2) in enumerate(indexes):
+            new_data[newindex_1][newindex_2] = data[oldindex_1][oldindex_2]
+
+    new_labels = [
+        "%s %s" % (date, wtp) for (date, oldindex, wtp) in indexes]
+
+    datasets.append((new_data, "%s dates" % name, new_labels))
     
 for data, name, use_labels in datasets:
+    for i in range(len(data)):
+        for j in range(len(data[i])):
+            if j > i:
+                data[i][j] = 0  # triangularize
+    
     df = pd.DataFrame(data, columns=use_labels, index=use_labels)
     sns.set(font_scale=0.5)
     heatmap = sns.heatmap(df, cmap=sns.color_palette("vlag", as_cmap=True),
                           center=0, xticklabels=True, yticklabels=True)
 
-    if len(use_labels) == len(labels):
+    if len(use_labels) == len(labels) and not name.endswith("dates"):
         prev_wtp, _ = labels[0]
         for i, (wtp, date) in enumerate(labels):
             if wtp != prev_wtp:
