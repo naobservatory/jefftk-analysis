@@ -48,9 +48,9 @@ all_y = list(sorted(all_y))
 incr_x = min((a-b) for (a,b) in zip(all_x[1:], all_x))
 incr_y = min((a-b) for (a,b) in zip(all_y[1:], all_y))
 
-if max_x > xmax:
+if max_x > xmax or True:
     max_x = xmax
-if max_y > ymax:
+if max_y > ymax or True:
     max_y = ymax
 
 xpips = round((max_x - min_x + 1) / incr_x)
