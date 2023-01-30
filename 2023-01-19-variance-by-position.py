@@ -115,7 +115,7 @@ for wtp in wtps:
                marker=',')
     fig.savefig("tbrv-%s-norm-variance.png" % wtp, dpi=180)
 
-raise Exception("breakpoint")
+#raise Exception("breakpoint")
                 
 for wtp in wtps:
     fig = plt.figure()
