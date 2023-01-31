@@ -56,7 +56,7 @@ fig, ax = plt.subplots()
 tag="loc_full"
 ax.set_ylabel("reads")
 ax.set_xlabel("position along genome")
-ax.set_title("reads by location (exact match)" % (tag))
+ax.set_title("reads by location (exact match)")
 ax.xaxis.set_major_formatter(mtick.PercentFormatter())
 
 for i, (slug, d) in enumerate(sorted(viruses.items())):
