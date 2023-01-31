@@ -7,83 +7,98 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from Bio.SeqIO.FastaIO import SimpleFastaParser
 
-K=40
-
-slugs = sys.argv[1:]
-viruses = {}
-for slug in slugs:
-    d = {
-        "assembled": {},
-        "genbank_top": {},
-        "genbank_closest": {},
-    }
-
-    d["assembled"]["fasta"], = glob.glob("%s.*.assembled.fasta" % slug)
-    d["genbank_top"]["fasta"] = d["assembled"]["fasta"].replace(
-        ".assembled.", ".")
-    d["genbank_closest"]["fasta"], = (
-        set(glob.glob("%s.*.fasta" % slug)) -
-        set([d["assembled"]["fasta"], d["genbank_top"]["fasta"]]))
-
-    for c, k in d.items():
-        with open(k["fasta"]) as inf:
-            (_, seq), = SimpleFastaParser(inf)
-            k['seq'] = seq
-    
-    viruses[slug] = d
-
-def kmers(seq, offset=0):
-    for i in range(len(seq) - K + 1):
-        if i < offset: continue
-        yield seq[i:i+K]
 
 def rc(s):
     return "".join({'T':'A', 'G':'C', 'A':'T', 'C':'G', 'N':'N'}[x]
                    for x in reversed(s))
 
 
-def compare(slug1, slug2):
+def compare(fasta1, fasta2):
+    vid1 = fasta1.replace(".fasta", "")
+    vid2 = fasta2.replace(".fasta", "")
+
+    with open(fasta1) as inf:
+        (_, seq1), = SimpleFastaParser(inf)
+    with open(fasta2) as inf:
+        (_, seq2), = SimpleFastaParser(inf)
+
     fig = plt.figure()
     ax = fig.add_subplot()
 
-    ax.set_xlabel(slug2)
-    ax.set_ylabel(slug1)
-    
-    seq1 = viruses[slug1]["assembled"]["seq"]
-    seq2 = viruses[slug2]["assembled"]["seq"]
-
-    seq1_f_kmers = list(kmers(seq1))
-    seq2_f_kmers = list(kmers(seq2))
-
-    seq1_r_kmers = list(kmers(rc(seq1)))
-    seq2_r_kmers = list(kmers(rc(seq2)))
-
-    seq1_kmers = seq1_r_kmers + seq1_f_kmers
-    seq2_kmers = seq2_r_kmers + seq2_f_kmers
-
+    ax.set_xlabel(vid1)
+    ax.set_ylabel(vid2)
+        
+    rc_seq1 = rc(seq1)
+    rc_seq2 = rc(seq2)
    
-    data = np.ndarray((len(seq1_kmers),len(seq2_kmers)), dtype=bool)
+    midpoint1 = len(seq1)
+    midpoint2 = len(seq2)
+    data = np.ndarray((midpoint1*2, midpoint2*2), dtype=np.ushort)
 
-    for i in range(len(seq1_kmers)):
-        for j in range(len(seq2_kmers)):
-            data[i][j] = seq1_kmers[i] == seq2_kmers[j]
+    for s1, s2, d1, d2 in [
+            #(seq1, seq2, 1, 1),
+            (seq1, rc_seq2, 1, -1),
+            #(rc_seq1, rc_seq2, -1, -1),
+            #(rc_seq1, seq2, -1, 1),
+            ]:
+        s1_len = len(s1)
+        s2_len = len(s2)
+        for i1 in range(s1_len):
+            print ("%s x %s: %s / %s" % (d1, d2, i1, s1_len))
+            for i2 in range(s2_len):
+                if i1 > 300:
+                    break
+                data[midpoint1 + i1 ][midpoint2 - i2 -1] = i1 == i2
+                continue
+                
+                c1 = s1[i1]
+                c2 = s2[i2]
+
+                match = 0
+                p1 = i1
+                p2 = i2
+            
+                while c1 == c2:
+                    match += 1
+                    p1 += 1
+                    p2 += 1
+                    if p1 >= s1_len or p2 >= s2_len:
+                        break
+                    c1 = s1[p1]
+                    c2 = s2[p2]
+
+                if match > 0:
+                    p1 = i1
+                    p2 = i2
+                    while True:
+                        p1 -= 1
+                        p2 -= 1
+                        if p1 < 0 or p2 < 0:
+                            break
+                        c1 = s1[p1]
+                        c2 = s2[p2]
+                        if c1 != c2:
+                            break
+                        match += 1
+
+                data[midpoint1 + d1*i1][midpoint2 + d2*i2] = match
 
     axis_labels = ["-100%", "-50%", "0%", "50%", "100%"]
     axis_locations = np.arange(len(axis_labels))
     x_axis_locations = [
-        x * len(seq2_kmers) / max(axis_locations) for x in axis_locations]
+        v * len(data[0]) / max(axis_locations) for v in axis_locations]
     y_axis_locations = [
-        x * len(seq1_kmers) / max(axis_locations) for x in axis_locations]
+        v * len(data) / max(axis_locations) for v in axis_locations]
             
     ax.matshow(data)
     ax.set_xticks(x_axis_locations)
     ax.set_xticklabels(axis_labels)
     ax.set_yticks(y_axis_locations)
     ax.set_yticklabels(axis_labels)
+    plt.gca().invert_yaxis()  # want 100% x 100% in upper right
+    fig.savefig("matrix-%s-%s.png" % (vid1, vid2), dpi=180)
 
-    fig.savefig("%s-%s-matrix.png" % (slug1, slug2), dpi=180)
-
-compare('tbrv', 'tmv')
+compare(*sys.argv[1:])
 
 
                             
