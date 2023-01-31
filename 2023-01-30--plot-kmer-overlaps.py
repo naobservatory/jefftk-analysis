@@ -33,24 +33,28 @@ def compare(fasta1, fasta2):
    
     midpoint1 = len(seq1)
     midpoint2 = len(seq2)
-    data = np.ndarray((midpoint1*2, midpoint2*2), dtype=np.ushort)
+
+    scalar = 32
+
+    def to_pip(v):
+        return int(v/scalar)
+       
+    data = np.ndarray((to_pip(midpoint1*2) + 1,
+                       to_pip(midpoint2*2) + 1),
+                      dtype=np.uint)
 
     for s1, s2, d1, d2 in [
-            #(seq1, seq2, 1, 1),
+            (seq1, seq2, 1, 1),
             (seq1, rc_seq2, 1, -1),
-            #(rc_seq1, rc_seq2, -1, -1),
-            #(rc_seq1, seq2, -1, 1),
+            (rc_seq1, rc_seq2, -1, -1),
+            (rc_seq1, seq2, -1, 1),
             ]:
         s1_len = len(s1)
         s2_len = len(s2)
         for i1 in range(s1_len):
-            print ("%s x %s: %s / %s" % (d1, d2, i1, s1_len))
+            if i1%100 == 0:
+                print ("%s x %s: %s / %s" % (d1, d2, i1, s1_len))
             for i2 in range(s2_len):
-                if i1 > 300:
-                    break
-                data[midpoint1 + i1 ][midpoint2 - i2 -1] = i1 == i2
-                continue
-                
                 c1 = s1[i1]
                 c2 = s2[i2]
 
@@ -81,7 +85,8 @@ def compare(fasta1, fasta2):
                             break
                         match += 1
 
-                data[midpoint1 + d1*i1][midpoint2 + d2*i2] = match
+                data[to_pip(midpoint1 + d1*i1)]\
+                    [to_pip(midpoint2 + d2*i2)] += match
 
     axis_labels = ["-100%", "-50%", "0%", "50%", "100%"]
     axis_locations = np.arange(len(axis_labels))
@@ -89,12 +94,13 @@ def compare(fasta1, fasta2):
         v * len(data[0]) / max(axis_locations) for v in axis_locations]
     y_axis_locations = [
         v * len(data) / max(axis_locations) for v in axis_locations]
-            
+
     ax.matshow(data)
     ax.set_xticks(x_axis_locations)
     ax.set_xticklabels(axis_labels)
     ax.set_yticks(y_axis_locations)
     ax.set_yticklabels(axis_labels)
+ 
     plt.gca().invert_yaxis()  # want 100% x 100% in upper right
     fig.savefig("matrix-%s-%s.png" % (vid1, vid2), dpi=180)
 
