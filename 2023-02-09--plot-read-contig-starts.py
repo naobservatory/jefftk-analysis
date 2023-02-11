@@ -64,7 +64,7 @@ fig, axs = plt.subplots(#nrows=9, ncols=1,
                         constrained_layout=True)
 
 plt.suptitle("fraction of reads observed starting at each location")
-fig.supxlabel("fraction of reads starting at a given location")
+fig.supxlabel("read start locations, most to least frequent")
 fig.supylabel("cumulative probility")
 for row, vid in enumerate(all_vids):
     slug = to_slug(vid)
@@ -73,15 +73,23 @@ for row, vid in enumerate(all_vids):
 
     for direction in ['f', 'r']:
         vals = Counter()
+        max_loc = 0
         for accession in samples:
             for frloc, count in samples[accession][vid].items():
                 if frloc.startswith(direction):
                     loc = int(frloc[1:])
+                    max_loc = max(max_loc, loc)
                     vals[loc] += count
 
-        n_vals = max(vals) + 1
-        xs = sorted([vals[loc] for loc in range(n_vals)])
-        ys = [v/n_vals for v in range(n_vals)]
+        xs = []
+        ys = []
+        total = sum(vals.values())
+        cumulative = 0
+        for i, val in enumerate(sorted(
+                [vals[loc] for loc in range(max_loc + 1)], reverse=True)):
+            cumulative += val
+            ys.append(cumulative / total)
+            xs.append(i)
 
         ax.plot(xs, ys, label=direction)
         ax.legend()
