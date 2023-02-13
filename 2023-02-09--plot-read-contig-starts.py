@@ -85,11 +85,18 @@ for row, vid in enumerate(all_vids):
         ys = []
         total = sum(vals.values())
         cumulative = 0
+        percentiles = set([50, 80, 95])
         for i, val in enumerate(sorted(
                 [vals[loc] for loc in range(max_loc + 1)], reverse=True)):
             cumulative += val
             ys.append(cumulative / total)
             xs.append(i)
+
+            for percentile in list(percentiles):
+                if cumulative / total * 100 > percentile:
+                    print("%.1f%%\t%s\t%.0f" % (100 * i / max_loc, slug,
+                                              cumulative / total * 100)) 
+                    percentiles.remove(percentile)
 
         ax.plot(xs, ys, label=direction)
         ax.legend()
