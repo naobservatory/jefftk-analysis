@@ -119,3 +119,34 @@ for i, vid1 in enumerate(all_vids):
     a.set_title("%s" % (slug))
 
 fig.savefig("corr-site-avg.png", dpi=180)
+plt.clf()
+
+fig, ax = plt.subplots(nrows=3,
+                       ncols=3,
+                       figsize=(9,9),
+                       constrained_layout=True)
+
+
+plt.suptitle("per-sample abundance vs average abundance, with SRR21452135")
+fig.supxlabel("mean relative relative abundance")
+fig.supylabel("relative abundance of this virus")
+for i, vid1 in enumerate(all_vids):
+    slug = to_slug(vid1)
+
+    xs = []
+    ys = []
+    cs = []
+
+    for accession, counts in accession_counts.items():
+        ys.append(relative_relative_abundance(vid1, accession))
+        xs.append(mean_relative_relative_abundance(accession))
+        cs.append(accession == "SRR21452135")
+        
+    a = ax[i//3][i%3]
+
+    a.scatter(xs, ys, c=cs)
+    a.set_title("%s" % (slug))
+
+fig.savefig("corr-site-SRR21452135.png", dpi=180)
+
+
