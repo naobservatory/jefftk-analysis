@@ -5,18 +5,21 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
 plt.xkcd()
-plt.rcParams["font.family"] = "serif"
+plt.rcParams["font.family"] = "sans"
 
-fig, ax = plt.subplots(constrained_layout=True)
+fig, axs = plt.subplots(constrained_layout=True,
+                        ncols=4,
+                        nrows=1,
+                        figsize=(8, 3))
 
-ax.set_title("Rough Benefit of Catching a Pandemic Sooner\n"
-             "For illustrative purposes only")
-ax.set_xlabel("time")
+plt.suptitle("Rough Benefit of Flagging a Pandemic Sooner\n"
+             "(illustrative purposes only)")
+fig.supxlabel("time")
 
-def b(t):
+def b(t, d):
     return 100-sum(d(i) for i in range(t+1))
 
-def d(t):
+def d1(t):
     if t == 0:
         return 0
     if t == 1:
@@ -38,45 +41,81 @@ def d(t):
     if t == 9:
         return 32
     if t == 10:
-        return 48
+        return 46
     if t == 11:
         return 52
     if t == 12:
-        return 40
+        return 54
     if t == 13:
-        return 30
+        return 52
     if t == 14:
-        return 25
+        return 48
     if t == 15:
-        return 23
-    return d(t-1)*.95
+        return 42
+    if t == 16:
+        return 28
+    if t == 17:
+        return 26
+    if t == 18:
+        return 25
+    return d(t-1)*.98
 
     #return b(t-1) - b(t)
 
-xs = []
-ys_b = []
-ys_d = []
+def d2(t):
+    if t == 0:
+        return 1
 
-for t in range(100):
-    xs.append(t)
-    ys_b.append(b(t))
-    ys_d.append(d(t))
+    if t < 50:
+        return d2(t-1)*1.5
+    return 0
 
-ax1 = ax
-ax2 = ax1.twinx()
+def d3(t):
+    if t == 0:
+        return 1
 
-ax1.set_xticks([])
-ax1.set_yticks([])
-ax2.set_yticks([])
+    if t < 30:
+        return d3(t-1)*1.5
+    return d3(t-1)*.95
 
-ax1.plot(xs, ys_b, label="b(t): benefit of catching at this stage", color="blue")
-ax2.plot(xs, ys_d, label="d(t): cost of delaying one day, b'(t)", color="orange")
+def d4(t):
+    if t < 90:
+        return t
+    return 0
 
-ax1.spines['top'].set_visible(False)
-ax1.spines['right'].set_visible(False)
-ax2.spines['top'].set_visible(False)
-ax2.spines['right'].set_visible(False)
+twins = [(ax_n, ax_n.twinx())
+         for ax_n in axs]
 
-fig.legend(loc="center right")
-    
+labeled = False
+for d, (ax1, ax2) in zip(
+        [d4, d2, d3, d1],
+        twins):
+    xs = []
+    ys_b = []
+    ys_d = []
+
+    for t in range(100):
+        xs.append(t)
+        ys_b.append(b(t, d))
+        ys_d.append(d(t))
+
+    ax1.set_xticks([])
+    ax1.set_yticks([])
+    ax2.set_yticks([])
+
+    if labeled:
+        ax2.plot(xs, ys_b, color="blue")
+        ax1.plot(xs, ys_d, color="orange")
+    else:
+        ax2.plot(xs, ys_b, label="b(t)", color="blue")
+        ax1.plot(xs, ys_d, label="d(t)", color="orange")
+        labeled = True
+
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+
+fig.legend()
+
 fig.savefig("delay.png", dpi=180)
