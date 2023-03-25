@@ -12,8 +12,10 @@
   function e(tag) {
     return document.createElement(tag);
   }
-  
+
   const tr1 = e("tr");
+  tr1.appendChild(e("th"));
+
   const thName = e("th");
   thName.innerText = "name";
   tr1.appendChild(thName);
@@ -51,58 +53,61 @@
       return '#fdf';
     } else if (x > 1e-10) {
       return '#fef';
-    }      
+    }
     return '#fff';
   }
 
   const rightTriangle = "&rarr;";
   const downTriangle = "&darr;";
-  
+
   function clickRow(tr, depth) {
     function handleClick(e) {
-      let s = tr.nextSibling;
-      while (s && s.depth > depth ) {
-        if (s.depth == depth + 1 && !tr.expanded) {
-          s.style.display = "table-row";
-        } else if (tr.expanded) {
-          s.style.display = "none";
-          s.expanded = false;
-          if (tr.childrenButton) {
-            tr.childrenButton.innerHTML = rightTriangle;
-          }
-        }
-        s = s.nextSibling;
-      }
-      tr.expanded = !tr.expanded;
-      tr.childrenButton.innerHTML = tr.expanded ? downTriangle : rightTriangle;
+      tr.collapsed = !tr.collapsed;
+      tr.childrenButton.innerHTML = tr.collapsed ? rightTriangle : downTriangle;
+      adjustDisplay();
     }
     return handleClick;
   }
-  
+
+  function adjustDisplay() {
+    let tr = tbl.children[0];
+    let collapse_depth = null;
+    while (tr.nextSibling) {
+      tr = tr.nextSibling;
+      if (collapse_depth != null && tr.depth <= collapse_depth) {
+        collapse_depth = null;
+      }
+      if (tr.collapsed && collapse_depth == null) {
+        collapse_depth = tr.depth;
+      }
+      tr.style.visibility = (
+        collapse_depth == null ||
+          tr.depth <= collapse_depth) ? "visible" : "collapse";
+    }
+  }
+
   function populateTable(node, depth) {
     const totals = [];
     const taxid = node[0];
     const tr = e("tr");
     tr.depth = depth;
+    tr.collapsed = depth > 1;
 
-    tr.expanded = true;
-    if (depth > 2) {
-      tr.expanded = false;
-    }      
-    if (depth > 3) {
-      tr.style.display = "none";
-    }
-    
+    const tdChildrenButton = e("td");
+    tr.appendChild(tdChildrenButton);
+    const tdChildrenCount = e("td");
+    tr.appendChild(tdChildrenCount);
+
     const tdName = e("td");
     tdName.style.paddingLeft = depth + "em";
-    tdName.innerText = names[taxid] + " (" + taxid + ")";
+    const aName = e("a");
+    aName.innerText = names[taxid];
+    aName.href = "https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi" +
+      "?lvl=0&id=" + taxid;
+    aName.setAttribute("target", "_blank");
+    tdName.appendChild(aName);
     tr.appendChild(tdName);
-    const tdChildren = e("td");
-    const tdChildrenCount = e("span");
-    const tdChildrenButton = e("button");
-    tdChildrenButton.onclick = clickRow(tr, depth);
-    tdChildrenButton.innerHTML = tr.expanded ? downTriangle : rightTriangle;
-    tr.appendChild(tdChildren);
+
     const tdReads = e("td");
     tr.appendChild(tdReads);
 
@@ -139,11 +144,12 @@
         tdVal.style.backgroundColor = sciColor(total);
         tr.appendChild(tdVal);
       }
-      tdChildren.appendChild(tdChildrenButton);
-      tr.childrenButton = tdChildrenButton;
+      const buttonChildren = e("button");
+      buttonChildren.onclick = clickRow(tr, depth);
+      buttonChildren.innerHTML = tr.collapsed ? rightTriangle : downTriangle;
+      tdChildrenButton.appendChild(buttonChildren);
+      tr.childrenButton = buttonChildren;
     }
-    tdChildren.appendChild(document.createTextNode(" "));
-    tdChildren.appendChild(tdChildrenCount);
 
     let s = tr.nextSibling;
     let children = 0;
@@ -162,9 +168,10 @@
     }
 
     tdReads.innerText = tr.nReads;
-    
+
     return totals;
   }
 
   populateTable(tree, 0);
+  adjustDisplay();
 </script>
