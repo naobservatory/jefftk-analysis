@@ -1,0 +1,170 @@
+<table id=tbl border=1 cellpadding=5></table>
+
+
+<script>
+
+// imports:
+//   virus_project_counts: taxid -> project -> count, relab
+//   projects: [project]
+//   names: taxid -> name
+//   tree: taxid with children
+
+  function e(tag) {
+    return document.createElement(tag);
+  }
+  
+  const tr1 = e("tr");
+  const thName = e("th");
+  thName.innerText = "name";
+  tr1.appendChild(thName);
+
+  const thChildren = e("th");
+  thChildren.innerText = "children";
+  tr1.appendChild(thChildren);
+
+  const thReads = e("th");
+  thReads.innerText = "reads";
+  tr1.appendChild(thReads);
+
+  for (const project of projects) {
+    const th = e("th");
+    th.innerText = project;
+    tr1.appendChild(th);
+  }
+  tbl.appendChild(tr1);
+
+  function sciNum(x) {
+    if (x == 0) return x;
+    return x.toExponential(1);
+  }
+
+  function sciColor(x) {
+    if (x > 1e-5) {
+      return '#f9f';
+    } else if (x > 1e-6) {
+      return '#faf';
+    } else if (x > 1e-7) {
+      return '#fbf';
+    } else if (x > 1e-8) {
+      return '#fcf';
+    } else if (x > 1e-9) {
+      return '#fdf';
+    } else if (x > 1e-10) {
+      return '#fef';
+    }      
+    return '#fff';
+  }
+
+  const rightTriangle = "&rarr;";
+  const downTriangle = "&darr;";
+  
+  function clickRow(tr, depth) {
+    function handleClick(e) {
+      let s = tr.nextSibling;
+      while (s && s.depth > depth ) {
+        if (s.depth == depth + 1 && !tr.expanded) {
+          s.style.display = "table-row";
+        } else if (tr.expanded) {
+          s.style.display = "none";
+          s.expanded = false;
+          if (tr.childrenButton) {
+            tr.childrenButton.innerHTML = rightTriangle;
+          }
+        }
+        s = s.nextSibling;
+      }
+      tr.expanded = !tr.expanded;
+      tr.childrenButton.innerHTML = tr.expanded ? downTriangle : rightTriangle;
+    }
+    return handleClick;
+  }
+  
+  function populateTable(node, depth) {
+    const totals = [];
+    const taxid = node[0];
+    const tr = e("tr");
+    tr.depth = depth;
+
+    tr.expanded = true;
+    if (depth > 2) {
+      tr.expanded = false;
+    }      
+    if (depth > 3) {
+      tr.style.display = "none";
+    }
+    
+    const tdName = e("td");
+    tdName.style.paddingLeft = depth + "em";
+    tdName.innerText = names[taxid] + " (" + taxid + ")";
+    tr.appendChild(tdName);
+    const tdChildren = e("td");
+    const tdChildrenCount = e("span");
+    const tdChildrenButton = e("button");
+    tdChildrenButton.onclick = clickRow(tr, depth);
+    tdChildrenButton.innerHTML = tr.expanded ? downTriangle : rightTriangle;
+    tr.appendChild(tdChildren);
+    const tdReads = e("td");
+    tr.appendChild(tdReads);
+
+    if (depth > 0) {
+      tbl.appendChild(tr);
+    }
+
+    if (node.length == 1) {
+      tr.nReads = 0;
+      for (const project of projects) {
+        const tdVal = e("td");
+        const project_counts = virus_project_counts[taxid][project];
+        const val = project_counts ? project_counts[1] : 0;
+        totals.push(val);
+        tdVal.innerText = sciNum(val);
+        tr.nReads += project_counts ? project_counts[0] : 0;
+        tdVal.style.backgroundColor = sciColor(val);
+        tr.appendChild(tdVal);
+      }
+      tdName.style.backgroundColor = '#fff';
+    } else {
+      for (const project of projects) {
+        totals.push(0);
+      }
+      for (let i = 1; i < node.length; i++) {
+        const r = populateTable(node[i], depth+1);
+        for (let j = 0; j < r.length; j++) {
+          totals[j] += r[j];
+        }
+      }
+      for (const total of totals) {
+        const tdVal = e("td");
+        tdVal.innerText = sciNum(total);
+        tdVal.style.backgroundColor = sciColor(total);
+        tr.appendChild(tdVal);
+      }
+      tdChildren.appendChild(tdChildrenButton);
+      tr.childrenButton = tdChildrenButton;
+    }
+    tdChildren.appendChild(document.createTextNode(" "));
+    tdChildren.appendChild(tdChildrenCount);
+
+    let s = tr.nextSibling;
+    let children = 0;
+    let nReads = 0;
+    while (s) {
+      nReads += s.nReads;
+      s = s.nextSibling;
+      children++;
+    }
+    if (children > 0) {
+      tdChildrenCount.innerText = children;
+    }
+
+    if (!tr.nReads) {
+      tr.nReads = nReads;
+    }
+
+    tdReads.innerText = tr.nReads;
+    
+    return totals;
+  }
+
+  populateTable(tree, 0);
+</script>
