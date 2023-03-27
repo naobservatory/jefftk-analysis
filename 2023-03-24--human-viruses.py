@@ -32,7 +32,7 @@ with open("nodes.dmp") as inf:
         child_taxid = int(child_taxid)
         parent_taxid = int(parent_taxid)
         parents[child_taxid] = parent_taxid
-        
+
 # taxid -> node
 nodes = {}
 
@@ -64,16 +64,23 @@ for virus_taxid in human_viruses:
 #                       [693626, ...],
 #                       [1299307, ...]]], ...], ...], ...]
 tree = nodes[1]
-        
-names = {}  # taxid -> name
+
+# taxid -> [name]
+# first name is scientific name
+names = {}
 with open("names.dmp") as inf:
     for line in inf:
         taxid, name, unique_name, name_class = line.replace(
             "\t|\n", "").split("\t|\t")
         taxid = int(taxid)
         if taxid in mentioned_taxids:
-            names[taxid] = name
-        
+            if taxid not in names:
+                names[taxid] = []
+            if name_class == "scientific name":
+                names[taxid].insert(0, name)
+            else:
+                names[taxid].append(name)
+
 # project -> accession -> n_reads
 project_sample_reads = defaultdict(dict)
 for n_reads_fname in glob.glob(
@@ -83,7 +90,7 @@ for n_reads_fname in glob.glob(
     if os.path.exists("%s.humanviruses.tsv" % accession):
         with open(n_reads_fname) as inf:
             project_sample_reads[project][accession] = int(inf.read())
-        
+
 projects = list(sorted(project_sample_reads))
 
 bioproject_names = {} # project -> bioproject name
@@ -122,5 +129,3 @@ with open("data.js", "w") as outf:
             ("tree", tree)]:
         outf.write("%s=%s;\n" % (name, json.dumps(
             val, indent=None if name == "tree" else 2)))
-
-               
