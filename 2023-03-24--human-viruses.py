@@ -99,6 +99,14 @@ for project in projects:
             MGS_PIPELINE_DIR, project)) as inf:
         bioproject_names[project] = inf.read().strip()
 
+bioproject_links = {} # project -> paper link
+for project, name in bioproject_names.items():
+    paper_dir = os.path.join(MGS_PIPELINE_DIR, "papers", name.replace(" ", ""))
+    link_fname = os.path.join(paper_dir, "link.txt")
+    if os.path.exists(link_fname):
+        with open(link_fname) as inf:
+            bioproject_links[project] = inf.read().strip()
+
 # virus -> project -> [count, relab]
 virus_project_counts = {}
 for virus_taxid in human_viruses:
@@ -126,6 +134,7 @@ with open("data.js", "w") as outf:
             ("projects", projects),
             ("names", names),
             ("bioproject_names", bioproject_names),
+            ("bioproject_links", bioproject_links),
             ("tree", tree)]:
         outf.write("%s=%s;\n" % (name, json.dumps(
             val, indent=None if name == "tree" else 2)))
