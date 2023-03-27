@@ -7,16 +7,18 @@ from collections import Counter
 from collections import defaultdict
 
 """
-Generate interactive HTML for exploring the taxonomy of human viruses
+Generate data for interactive HTML for exploring the taxonomy of human viruses
 identified in the samples.
 
-Columns are studies, rows are taxonomic nodes, cells are relative abundances.
+Columns are bioprojects, rows are taxonomic nodes, cells are relative abundances.
 
 Rows can be expanded or collapsed to show child nodes.
 """
 
+MGS_PIPELINE_DIR="/Users/jeffkaufman/code/mgs-pipeline"
+
 human_viruses = set()   # {taxid}
-with open("/Users/jeffkaufman/code/mgs-pipeline/human-viruses.tsv") as inf:
+with open("%s/human-viruses.tsv" % MGS_PIPELINE_DIR) as inf:
     for line in inf:
         taxid, name = line.strip().split("\t")
         taxid = int(taxid)
@@ -75,7 +77,7 @@ with open("names.dmp") as inf:
 # project -> accession -> n_reads
 project_sample_reads = defaultdict(dict)
 for n_reads_fname in glob.glob(
-        "/Users/jeffkaufman/code/mgs-pipeline/studies/*/metadata/*.n_reads"):
+        "%s/bioprojects/*/metadata/*.n_reads" % MGS_PIPELINE_DIR):
     project = n_reads_fname.split("/")[-3]
     accession = n_reads_fname.split("/")[-1].replace(".n_reads", "")
     if os.path.exists("%s.humanviruses.tsv" % accession):
@@ -83,6 +85,12 @@ for n_reads_fname in glob.glob(
             project_sample_reads[project][accession] = int(inf.read())
         
 projects = list(sorted(project_sample_reads))
+
+bioproject_names = {} # project -> bioproject name
+for project in projects:
+    with open("%s/bioprojects/%s/metadata/name.txt" % (
+            MGS_PIPELINE_DIR, project)) as inf:
+        bioproject_names[project] = inf.read().strip()
 
 # virus -> project -> [count, relab]
 virus_project_counts = {}
@@ -110,6 +118,7 @@ with open("data.js", "w") as outf:
             ("virus_project_counts", virus_project_counts),
             ("projects", projects),
             ("names", names),
+            ("bioproject_names", bioproject_names),
             ("tree", tree)]:
         outf.write("%s=%s;\n" % (name, json.dumps(
             val, indent=None if name == "tree" else 2)))
