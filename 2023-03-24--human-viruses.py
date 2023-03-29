@@ -107,6 +107,8 @@ for project, name in bioproject_names.items():
         with open(link_fname) as inf:
             bioproject_links[project] = inf.read().strip()
 
+bioproject_totals = {}
+            
 # virus -> project -> [count, relab]
 virus_project_counts = {}
 for virus_taxid in human_viruses:
@@ -117,6 +119,8 @@ for virus_taxid in human_viruses:
         for accession in project_sample_reads[project]:
             project_total += project_sample_reads[project][accession]
             hv = "%s.humanviruses.tsv" % accession
+            # this is terrible: we should be opening each file once, not once
+            # per virus
             with open(hv) as inf:
                 for line in inf:
                     taxid, count, name = line.strip().split("\t")
@@ -127,14 +131,22 @@ for virus_taxid in human_viruses:
         if project_count > 0:
             virus_project_counts[virus_taxid][project] = (
                 project_count, project_count / project_total)
+        bioproject_totals[project] = project_total
 
+sorted_projects = [project for key, project in
+                   sorted(((bioproject_names[project].split()[-1],
+                            bioproject_names[project]),
+                           project)
+                          for project in projects)]
+        
 with open("data.js", "w") as outf:
     for name, val in [
             ("virus_project_counts", virus_project_counts),
-            ("projects", projects),
+            ("projects", sorted_projects),
             ("names", names),
             ("bioproject_names", bioproject_names),
             ("bioproject_links", bioproject_links),
+            ("bioproject_totals", bioproject_totals),
             ("tree", tree)]:
         outf.write("%s=%s;\n" % (name, json.dumps(
-            val, indent=None if name == "tree" else 2)))
+            val, sort_keys=True, indent=None if name == "tree" else 2)))
