@@ -26,17 +26,15 @@ with open("ocwmn.json") as inf:
     for feature in json.load(inf)["operationalLayers"][2][
             "featureCollection"]["layers"][0]["featureSet"]["features"]:
         pop = feature["attributes"]["Population_Served"]
-        name = feature["attributes"]["Facility_Name"]
         county = feature["attributes"]["County"]
 
         for site in site_populations:
-            distances[site][abs(site_populations[site] - pop)] = (
-                name, county)
+            distances[site][abs(site_populations[site] - pop)] = county
 
 for site in site_populations:
     print("%s:" % site)
-    for n, (distance, (name, county)) in enumerate(
+    for n, (distance, county) in enumerate(
             sorted(distances[site].items())):
         if n > 5: break
-        print("  %s %s; %s" % (str(distance).rjust(10), name, county))
+        print("  %s %s" % (str(distance).rjust(10), county))
         
