@@ -53,6 +53,9 @@ other_targets = [
     "Pepper mild mottle virus",
     "Influenza A virus",
     "Influenza B virus",
+    "Bacteria",
+    "Viruses",
+    "Norovirus",    
 ]
 
 targets = listed_targets + other_targets
@@ -70,7 +73,7 @@ for target_name in targets:
 
 with open("/Users/jeffkaufman/code/mgs-pipeline/dashboard/"
           "metadata_samples.json") as inf:
-    samples = json.load(inf)
+    sample_metadata = json.load(inf)
 
 # taxid -> {"viral": unenriched clade assignments,
 #           "panel": enriched clade assignments}
@@ -78,43 +81,68 @@ taxid_clade_assignments = {}
 for taxid in target_taxids.values():
     taxid_clade_assignments[taxid] = {"viral": 0, "panel": 0}
 
+# date, wtp -> {"viral": sample, "panel": sample}
+sample_pairs = {}
 for cladecounts in glob.glob("PRJNA729801-cladecounts/*.tsv.gz"):
     sample = cladecounts.split("/")[-1].split(".")[0]
-    enrichment = samples[sample]["enrichment"]
 
-    with gzip.open(cladecounts) as inf:
-        for line in inf:
-            taxid, _, _, clade_assigments, _ = line.decode("utf-8").strip().split("\t")
-            if taxid in taxid_clade_assignments:
-                taxid_clade_assignments[
-                    taxid][enrichment] += int(clade_assigments)
+    key = (sample_metadata[sample]["date"],
+           sample_metadata[sample]["fine_location"])
+    if key not in sample_pairs:
+        sample_pairs[key] = {"viral": None, "panel": None}
 
+    sample_pairs[key][sample_metadata[sample]["enrichment"]] = sample
 
-print("%s\t%s\t%s\t%s (%s)" % (
+reads = {"viral": 0,
+         "panel": 0}
+for sample_pair in sample_pairs.values():
+    if not sample_pair["viral"] or not sample_pair["panel"]: continue
+    for enrichment, sample in sample_pair.items():
+        reads[enrichment] += sample_metadata[sample]["reads"]
+
+        with gzip.open("PRJNA729801-cladecounts/%s.tsv.gz" % sample) as inf:
+            for line in inf:
+                taxid, _, _, clade_assigments, _ = line.decode(
+                    "utf-8").strip().split("\t")
+                if taxid in taxid_clade_assignments:
+                    taxid_clade_assignments[
+                        taxid][enrichment] += int(clade_assigments)
+
+print("%s\t%s\t%s\t%s\t%s\t%s\t%s" % (
+    "target",
+    "taxid",
     "panel",
     "viral",
     "ratio",
-    "target",
-    "taxid",
+    "panel ra",
+    "viral ra",
 ))
 for target_name, target_taxid in sorted(target_taxids.items()):
     viral = taxid_clade_assignments[target_taxid]["viral"]
     panel = taxid_clade_assignments[target_taxid]["panel"]
     
     if viral and panel:
-        ratio = "%.1f" % (panel / viral)
+        raw_ratio = panel / viral * reads["viral"] / reads["panel"]
+        if raw_ratio > 10:
+            ratio = "%.0f" % raw_ratio
+        if raw_ratio > 1:
+            ratio = "%.1f" % raw_ratio
+        else:
+            ratio = "%.2f" % raw_ratio
     elif panel:
-        ratio = "inf"
+        ratio = "<%s" % round(panel * reads["viral"] / reads["panel"])
     elif viral:
         ratio = "0"
     else:
         ratio = "n/a"
 
-    print("%s\t%s\t%s\t%s (%s)" % (
+    print("%s\t%s\t%s\t%s\t%s\t%s\t%s" % (
+        target_name,
+        target_taxid,
         panel,
         viral,
         ratio,
-        target_name,
-        target_taxid,
+        panel / reads["panel"],
+        viral / reads["viral"],
     ))
                 
