@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# Run 2023-07-14--verify-all-targets-in-refseq.py first.
+
 import os
 import re
 import gzip
