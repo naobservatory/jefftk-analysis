@@ -90,9 +90,16 @@ def classify_reads(fake_reads_fname, classified_fname):
         fake_reads_fname
     ])
 
+high_level = []
 for our_taxid in taxid_to_name:
     if our_taxid == 68558:
         continue # no genomes
+
+    genomes = 0
+    for any_taxid in our_taxid_to_all[str(our_taxid)]:
+        if any_taxid in taxid_to_fastas:
+            for fasta in sorted(taxid_to_fastas[any_taxid]):
+                genomes += 1
 
     alias_taxids = our_taxid_to_all[str(our_taxid)]
 
@@ -104,6 +111,8 @@ for our_taxid in taxid_to_name:
     if not os.path.exists(classified_fname):
         classify_reads(fake_reads_fname, classified_fname)
 
+    our_desc = "%s (taxid %s)" % (taxid_to_name[our_taxid], our_taxid)
+        
     total = 0
     classification_counts = defaultdict(int)
     with open(classified_fname) as inf:
@@ -112,7 +121,7 @@ for our_taxid in taxid_to_name:
             desc = line.split("\t")[2]
             classified_taxid = int(desc.split("(taxid ")[-1].replace(")", ""))
             if classified_taxid in alias_taxids:
-                desc = "%s (taxid %s)" % (taxid_to_name[our_taxid], our_taxid)
+                desc = our_desc
             classification_counts[desc] += 1
 
     count_classification = [
@@ -124,3 +133,16 @@ for our_taxid in taxid_to_name:
     for count, classification in count_classification:
         print ("  %s (%.1f%%)\t%s" % (
             count, 100*count/total, classification))
+
+    high_level.append(
+        "%s (%s)\t%.1f%%\t%s\t%s" %
+        (taxid_to_name[our_taxid],
+         our_taxid,
+         100*classification_counts[our_desc]/total,
+         total,
+         genomes))
+
+print()
+
+for line in high_level:
+    print(line)
