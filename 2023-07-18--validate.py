@@ -22,6 +22,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--paper")
 parser.add_argument("--sample")
 parser.add_argument("--genome-fasta")
+parser.add_argument("--taxid", type=int)
 parser.add_argument("dashboard_dir")
 args = parser.parse_args()
 
@@ -251,11 +252,13 @@ def color_alignment(read, canonical):
   return "".join(out)
 
 def validate(our_taxid):
-  print(taxid_to_name[our_taxid])
   genome = load_genome(our_taxid)
   reads, papers_by_read_id = load_reads(
     determine_non_duplicate_read_ids(our_taxid))
 
+  if not papers_by_read_id:
+    return
+  
   max_paper_len = max(len(paper) for paper in papers_by_read_id.values())
   max_read_id_len = max(len(read_id) for read_id in reads)
   max_label_len = max_read_id_len + max_paper_len + 2
@@ -359,7 +362,7 @@ def determine_non_duplicate_read_ids(our_taxid):
       for line in inf]
 
 for our_taxid in taxid_to_name:
-  if our_taxid != 11103: continue # FIXME
+  if args.taxid and args.taxid != our_taxid: continue
   if taxid_to_name[our_taxid] == "AAV6":
     continue # Not in RefSeq  validate(our_taxid)
 
