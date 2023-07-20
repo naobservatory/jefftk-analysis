@@ -98,28 +98,31 @@ for our_taxid, all_taxids in our_taxid_to_all.items():
   for all_taxid in all_taxids:
     all_to_our_taxid[all_taxid] = int(our_taxid)
 
-def pick_genome(our_taxid):
+def pick_genomes(our_taxid):
   if args.genome_fasta:
-    return args.genome_fasta
+    yield args.genome_fasta
   for any_taxid in sorted(our_taxid_to_all[str(our_taxid)]):
     if any_taxid in taxid_to_fastas:
       for fasta in sorted(taxid_to_fastas[any_taxid]):
-        return fasta
-  assert False
+        yield fasta
 
-def load_genome(our_taxid):
-  genome = []
+def load_genomes(our_taxid):
+  genomes = []
 
-  fasta_fname = pick_genome(our_taxid)
-  o = gzip.open if fasta_fname.endswith(".gz") else open
-  with o(fasta_fname) as inf:
-    for line in inf:
-      if type(line) == type(b""):
-        line = line.decode("utf-8")
-      line = line.strip()
-      if line.startswith(">"): continue
-      genome.append(line)
-  return "".join(genome)
+  for fasta_fname in pick_genomes(our_taxid):
+    genome = []
+    o = gzip.open if fasta_fname.endswith(".gz") else open
+    with o(fasta_fname) as inf:
+      for line in inf:
+        if type(line) == type(b""):
+          line = line.decode("utf-8")
+        line = line.strip()
+        if line.startswith(">"): continue
+        genome.append(line)
+    genomes.append("".join(genome))
+
+  genomes.sort()
+  return genomes
 
 def rc(s):
   return "".join({'T':'A',
@@ -195,7 +198,7 @@ def score_candidate(genome, candidate):
       best_score = score
   return best_score, best_pos
 
-def align_read(genome, read_info):
+def align_read_to_one_genome(genome, read_info):
   if len(read_info) == 2:
     kraken_info, fwd = read_info
     rev = ""
@@ -238,6 +241,21 @@ def align_read(genome, read_info):
   return best_score, other_score, best_pos, best_candidate, \
     other_pos, other, best_label, other_label
 
+def align_read(genomes, read_info):
+  best_score = 0
+  best_result = None
+  best_genome_index = None
+  for genome_index, genome in enumerate(genomes):
+    result = align_read_to_one_genome(genome, read_info)
+    score1, score2, *_ = result
+    score = score1 + score2
+    if score1 + score2 > best_score:
+      best_result = result
+      best_score = score
+      best_genome_index = genome_index
+      
+  return best_result, genome_index
+
 def offset(pos, fwd):
   return " "*pos + fwd
 
@@ -252,64 +270,36 @@ def color_alignment(read, canonical):
   return "".join(out)
 
 def validate(our_taxid):
-  genome = load_genome(our_taxid)
+  genomes = load_genomes(our_taxid)
   reads, papers_by_read_id = load_reads(
     determine_non_duplicate_read_ids(our_taxid))
 
   if not papers_by_read_id:
     return
-  
-  max_paper_len = max(len(paper) for paper in papers_by_read_id.values())
-  max_read_id_len = max(len(read_id) for read_id in reads)
-  max_label_len = max_read_id_len + max_paper_len + 2
 
-  with open("%s.validation.txt" % our_taxid, "w") as outf:
-    with open("%s.validation-summary.tsv" % our_taxid, "w") as outf2:
-      outf.write(" " * max_label_len + genome + "\n")    
-      for read_id, read_info in sorted(reads.items()):
-        if args.sample and not (
-            read_id.startswith(args.sample) or
-            read_id.removeprefix("M_").startswith(args.sample)):          
-          continue
+  with open("%s.validation-summary.tsv" % our_taxid, "w") as outf:
+    for read_id, read_info in sorted(reads.items()):
+      if args.sample and not (
+          read_id.startswith(args.sample) or
+          read_id.removeprefix("M_").startswith(args.sample)):
+        continue
 
-        if args.paper and args.paper != papers_by_read_id[read_id]:
-          continue
-      
-        score1, score2, pos1, read1, pos2, read2, label1, label2 = \
-          align_read(genome, read_info)
+      if args.paper and args.paper != papers_by_read_id[read_id]:
+        continue
 
-        outf2.write("\t".join((
-          papers_by_read_id[read_id],
-          read_id,
-          "%s:%s/%s @%s" % (label1, score1, len(read1), pos1),
-          "%s:%s/%s @%s" % (label2, score2, len(read2), pos2),
-          read1, read2)) + "\n")
-        outf2.flush()
-        
-        print(COLOR_BLUE + papers_by_read_id[read_id] + COLOR_END,
-              COLOR_MAGENTA + read_id + COLOR_END,
-              "%s:%s/%s @%s" % (label1, score1, len(read1), pos1),
-              ("%s:%s/%s @%s" % (label2, score2, len(read2), pos2)
-               if label2 else ""),
-              color_alignment(read1, genome[pos1:]),
-              color_alignment(read2, genome[pos2:]))
+      (score1, score2,
+       pos1, read1,
+       pos2, read2,
+       label1, label2), genome_index = align_read(genomes, read_info)
 
-        """
-        if gap > 15:
-          gapcode = "...%s%s%s..." % (
-            gap,
-            "."*(gap - 6 - 2*len(str(gap))),
-            gap)
-        elif gap > 8:
-          gapcode = "...%s%s..." % (gap, "."*(gap - 6 - len(str(gap))))
-        else:
-          gapcode = "." * gap
-        outf.write(
-          papers_by_read_id[read_id].rjust(max_paper_len) + " " +
-          read_id.rjust(max_read_id_len) +  " " +
-          " "* pos + read1 + gapcode + read2 + "\n")
-        outf.flush()
-        """
+      outf.write("\t".join((
+        papers_by_read_id[read_id],
+        read_id,
+        str(genome_index),
+        "%s:%s/%s @%s" % (label1, score1, len(read1), pos1),
+        "%s:%s/%s @%s" % (label2, score2, len(read2), pos2),
+        read1, read2)) + "\n")
+      outf.flush()
 
 def determine_non_duplicate_read_ids(our_taxid):
   ndrids_fname = "%s.ndrids.tsv" % our_taxid
