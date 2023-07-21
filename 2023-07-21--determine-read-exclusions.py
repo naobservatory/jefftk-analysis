@@ -31,6 +31,15 @@ taxid_list="""
 2697049         sars_cov_2      SARS-COV-2
 """
 
+taxid_to_name = {}
+for line in taxid_list.split("\n"):
+  line = line.strip()
+  if not line: continue
+
+  taxid, human_readable = re.match(
+    "^([0-9]+) +[a-z0-9_]+ +(.*)$", line).groups()
+  taxid_to_name[int(taxid)] = human_readable
+
 def accept(taxid, percent_identical):
   if taxid == 10804: # AAV2
     #  Checked 9 reads, including the worst ones.  All look real, and
@@ -123,9 +132,9 @@ for validation_summary in glob.glob("*.validation-summary.tsv"):
       percent_identical = round(100*(matches1 + matches2) / (total1 + total2))
 
       if not accept(taxid, percent_identical):
-        exclusions.append(read_id)
+        exclusions.append((read_id, taxid, taxid_to_name[taxid]))
 
-with open("excluded-read-ids.txt", "w") as outf:
+with open("excluded-read-ids.tsv", "w") as outf:
   for exclusion in sorted(exclusions):
-    outf.write(exclusion + "\n")
+    outf.write("%s\t%s\t%s\n" % exclusion)
         
