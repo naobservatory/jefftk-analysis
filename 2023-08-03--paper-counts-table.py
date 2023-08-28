@@ -63,3 +63,37 @@ for paper_name, paper_attrs in sorted(papers.items()):
         reads,
         human_viral_reads / reads,
     ))
+
+print("paper\tpanel-amplified\tremainder")
+for paper_name, paper_attrs in sorted(papers.items()):
+    if paper_attrs["link"] == "personal communication": continue
+
+    if not any(samples[sample].get("enrichment", None) == "panel"
+               for bioproject in paper_attrs["projects"]
+               for sample in bioprojects[bioproject]):
+        continue
+
+    p_reads = 0
+    p_human_viral_reads = 0
+
+    r_reads = 0
+    r_human_viral_reads = 0
+
+    for bioproject in paper_attrs["projects"]:
+        for sample in bioprojects[bioproject]:
+            if samples[sample].get("enrichment", None) == "panel":
+                p_reads += samples[sample]["reads"]
+                for human_virus, sample_counts in \
+                    human_virus_sample_counts.items():
+                    p_human_viral_reads += sample_counts.get(sample, 0)
+            else:
+                r_reads += samples[sample]["reads"]
+                for human_virus, sample_counts in \
+                    human_virus_sample_counts.items():
+                    r_human_viral_reads += sample_counts.get(sample, 0)
+    name = paper_name
+    print("%s\t%.10f\t%.10f" % (
+        name,
+        p_human_viral_reads / p_reads,
+        r_human_viral_reads / r_reads,
+    ))
