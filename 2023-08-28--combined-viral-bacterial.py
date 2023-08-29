@@ -50,7 +50,7 @@ for line in sys.stdin:
         if hit == "A":
             continue # ambiguous nucleotide
         
-        if hit == ":":
+        if hit == "|":
             continue # fwd/rev division
     
         hit = int(hit)
