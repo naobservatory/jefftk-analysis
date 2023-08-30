@@ -7,8 +7,8 @@ import random
 from collections import defaultdict
 
 
-MGS_PIPELINE_DIR="/Users/jeffkaufman/code/mgs-pipeline"
-MGS_RESTRICTED_DIR="/Users/jeffkaufman/code/mgs-restricted"
+MGS_PIPELINE_DIR="/home/ec2-user/mgs-pipeline"
+MGS_RESTRICTED_DIR="/home/ec2-user/mgs-restricted"
 
 bioproject_to_s3_bucket = {}
 
