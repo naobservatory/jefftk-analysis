@@ -27,5 +27,20 @@ if [ ! -e observed-human-virus-taxids.txt ]; then
         observed-human-virus-taxids.txt
 fi
 
-
 ~/jefftk-analysis/2023-09-07--get-genomes.py 
+
+if [ ! -d raw-genomes ]; then
+    mkdir raw-genomes
+    for x in $(find refseq/ | grep gz$); do
+        zcat "$x" > raw-genomes/$(basename ${x/.fna.gz/.fna})
+    done
+fi
+
+if [ ! -e human-viruses.1.bt2 ]; then
+    ~/bowtie2-2.5.1-linux-x86_64/bowtie2-build \
+        -f \
+        --threads 32 \
+        $(find raw-genomes/ | grep .fna$ | tr '\n' ',') \
+        human-viruses
+fi
+
