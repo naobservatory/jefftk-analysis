@@ -160,7 +160,7 @@ def colorize(kraken_info, sequences):
     return colorized_kraken_info, colorized_sequences
         
 for paper in sorted(examples_by_paper):
-    if "Rothman" not in paper or "panel" in paper: continue
+    if "Johnson" not in paper or "panel" in paper: continue
     print(paper)
     for sample, seq_id, kraken_info, sequences in examples_by_paper[paper]:
         colorized_kraken_info, colorized_sequences = colorize(
