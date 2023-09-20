@@ -13,11 +13,11 @@ if [ ! -d hvreads ]; then
     done | xargs -P 32 -I {} aws s3 cp {} hvreads/
 fi
 
-if [ ! -d hvfastas ]; then
-    mkdir hvfastas
+if [ ! -d hvfastqs ]; then
+    mkdir hvfastqs
     ls hvreads | \
         xargs -P 32 -I {} \
-              ~/jefftk-analysis/2023-09-07--json-to-fasta.py hvreads hvfastas {}
+              ~/jefftk-analysis/2023-09-07--json-to-fasta.py hvreads hvfastqs {}
 fi
 
 if [ ! -e observed-human-virus-taxids.txt ]; then
@@ -44,3 +44,7 @@ if [ ! -e human-viruses.1.bt2 ]; then
         human-viruses
 fi
 
+if [ ! -e hvsams ]; then
+    mkdir hvsams
+    ~/jefftk-analysis/2023-09-19--run-bowtie.py
+fi

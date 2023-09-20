@@ -28,8 +28,9 @@ for label, reads in [
         ("combined", combined),
 ]:
     with open(os.path.join(out_dir,
-                           sample + "." + label + ".fasta"),
+                           sample + "." + label + ".fastq"),
               "w") as outf:
         for seq_id, read in reads:
-            outf.write(">%s\n%s\n" % (
-                seq_id, read))
+            seq, quality = read
+            outf.write("@%s\n%s\n+\n%s\n" % (
+                seq_id, seq, quality))
