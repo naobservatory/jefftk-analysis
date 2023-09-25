@@ -8,10 +8,12 @@ import Bio.SeqIO
 sam_fname, *read_ids = sys.argv[1:]
 
 genomes = {}
+descriptions = {}
 for genome in glob.glob("raw-genomes/*.fna"):
     with open(genome) as inf:
         for record in Bio.SeqIO.parse(inf, "fasta"):
             genomes[record.id] = record.seq
+            descriptions[record.id] = record.description
 
 # copied from icdiff
 def get_columns():
@@ -47,6 +49,15 @@ with pysam.AlignmentFile(sam_fname, "r") as alignments:
         if alignment.reference_end is None:
             continue
 
+        print(alignment.query_name)
+        print(descriptions[ref])
+        print()
+        print(alignment.get_forward_sequence())
+        print()
+        if alignment.query_sequence != alignment.get_forward_sequence():
+            print("RC")
+            print()
+        
         ref_seq = genomes[ref]
         qry_seq = alignment.query_sequence
 
@@ -58,14 +69,13 @@ with pysam.AlignmentFile(sam_fname, "r") as alignments:
         mid_row = []
         qry_row = []
 
-        print(alignment.query_name)
         def maybe_print(force=False):
             global scr_pos
             if scr_pos >= COLUMNS or (force and mid_row):
                 ref_line = "".join(ref_row)
                 mid_line = "".join(mid_row)
                 qry_line = "".join(qry_row)
-                
+
                 print(ref_pos - len(ref_line.replace("-", "")),
                       "...",
                       ref_pos)
@@ -89,7 +99,10 @@ with pysam.AlignmentFile(sam_fname, "r") as alignments:
                 op_type == 8):   # Mismatch
                 for _ in range(op_length):
                     base_ref = ref_seq[ref_pos]
-                    base_qry = qry_seq[qry_pos]
+                    try:
+                        base_qry = qry_seq[qry_pos]
+                    except IndexError:
+                        base_qry = "~"
 
                     ref_row.append(base_ref)
                     qry_row.append(base_qry)
@@ -127,8 +140,15 @@ with pysam.AlignmentFile(sam_fname, "r") as alignments:
             elif op_type == 4 and cigar_index == len(alignment.cigartuples) -1:
                 # Soft clipping at end
                 for _ in range(op_length):
-                    base_ref = ref_seq[ref_pos]
-                    base_qry = qry_seq[qry_pos]
+                    try:
+                        base_ref = ref_seq[ref_pos]
+                    except IndexError:
+                        base_ref = "~"
+
+                    try:
+                        base_qry = qry_seq[qry_pos]
+                    except IndexError:
+                        base_qry = "~"
 
                     ref_row.append(base_ref)
                     qry_row.append(base_qry)
