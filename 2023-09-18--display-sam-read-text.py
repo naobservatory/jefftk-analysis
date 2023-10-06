@@ -1,20 +1,35 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import glob
 import pysam
 import Bio.SeqIO
 
-sam_fname, *read_ids = sys.argv[1:]
+args = sys.argv[1:]
+if len(args) == 1:
+    read_ids = args
+    read_id, = read_ids
+    sam_fname = read_id.split(".")[0] + ".sam"
+    sam_fname = sam_fname.removeprefix("M_")
+    sam_fname = "hvsams/" + sam_fname
+else:
+    sam_fname, *read_ids = args
 
 genomes = {}
 descriptions = {}
-for genome in glob.glob("raw-genomes/*.fna"):
+def load_genome(genome):
     with open(genome) as inf:
         for record in Bio.SeqIO.parse(inf, "fasta"):
             genomes[record.id] = record.seq
             descriptions[record.id] = record.description
 
+if os.path.exists("raw-genomes/merged.fna"):
+    load_genome("raw-genomes/merged.fna")
+else:
+    for genome in glob.glob("raw-genomes/*.fna"):
+        load_genome(genome)
+            
 # copied from icdiff
 def get_columns():
     def ioctl_GWINSZ(fd):
