@@ -3,7 +3,7 @@
 import sys
 import json
 
-MGS_PIPELINE_DIR="../mgs-pipeline"
+MGS_PIPELINE_DIR="/Users/jeffkaufman/code/mgs-pipeline"
 
 # taxid -> parent
 parents = {}
@@ -36,13 +36,15 @@ for taxid in parents:
 
 n_viral = 0
 both = []
+lines = 0
 for line in sys.stdin:
     try:
         _, seq_id, _, _, kraken_info = line.strip().split("\t")
     except Exception:
         print(line)
         raise
-
+    lines += 1
+    
     viral_count = 0
     bacterial_count = 0
     for segment in kraken_info.split():
@@ -66,6 +68,9 @@ for line in sys.stdin:
 
         if bacterial_count >= 10:
             both.append((seq_id, kraken_info))
+
+    if lines % 1000000 == 0:
+        print("%s / %s" % (len(both), lines), file=sys.stderr)
 
 json.dump({
     "n_both": len(both),

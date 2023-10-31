@@ -33,15 +33,17 @@ def match(haystack, needle):
 
     return best_pos, best_score / len(needle)
 
-def color(seq, pos, adapter):
+def color(seq, pos, adapter, include_brackets=True):
     bits = [seq[:pos]]
-    bits.append(COLOR_BLUE_BOLD)
-    bits.append("[")
+    if include_brackets:
+        bits.append(COLOR_BLUE_BOLD)
+        bits.append("[")
     for s, a in zip (seq[pos:], adapter):
         bits.append(COLOR_GREEN_BOLD if s == a else COLOR_RED_BOLD)
         bits.append(s)
-    bits.append(COLOR_BLUE_BOLD)
-    bits.append("]")
+    if include_brackets:
+        bits.append(COLOR_BLUE_BOLD)
+        bits.append("]")
     bits.append(COLOR_END)
     bits.append(seq[pos + len(adapter):])
     return "".join(bits)
@@ -64,10 +66,11 @@ with open(fastq1) as inf1:
                 continue
 
             if pos1 != pos2:
-                if False:
+                if True:
                     print(t1)
                     print(color(s1, pos1, fwd))
                     print(color(s2, pos2, rev))
+                    print()
                 mismatches += 1
                 
 print(mismatches, read_pairs)
