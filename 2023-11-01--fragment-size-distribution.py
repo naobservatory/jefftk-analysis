@@ -19,6 +19,7 @@
 
 import glob
 import gzip
+import subprocess
 from collections import Counter
 
 # We take the first N for each file, and then cut down to N max by weighting
@@ -58,20 +59,26 @@ def taxid_matches(taxid, category):
 
 read_ids = {}
 full_counts = Counter()
-for fname in glob.glob("SRR14530724*.kraken2.tsv.gz"): #"SRR18341134*.kraken2.tsv.gz"):
+for fname in [
+        "s3://nao-mgs/PRJNA729801/processed/SRR14530724.collapsed.truncated.kraken2.tsv.gz",
+        "s3://nao-mgs/PRJNA729801/processed/SRR18341134.collapsed.truncated.kraken2.tsv.gz",
+]:
     read_ids[fname] = {
         "all": [],
         "bacterial": [],
         "viral": [],
         "humanviral": [],
     }
-    with gzip.open(fname, "rt") as inf:
+    process = subprocess.Popen(["aws", "s3", "cp", fname, "-"],
+                               stdout=subprocess.PIPE,
+                               shell=False)
+    with gzip.open(process.stdout, "rt") as inf:
         for line in inf:
             bits = line.removesuffix("\n").split("\t")
             read_id = bits[1]
             full_assignment = bits[2]
 
-            taxid = int(full_assignment.split()[-1].removesuffix(")"))
+            taxid = int(full_assignment.split()[-1].rstrip(")"))
 
             for category in read_ids[fname]:
                 if len(read_ids[fname][category]) < TARGET_LEN:
