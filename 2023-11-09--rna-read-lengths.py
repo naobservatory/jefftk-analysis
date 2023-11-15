@@ -59,15 +59,12 @@ def populate_data(paper, samples, chosen_category):
             for category, category_lengths in json.load(inf).items():
                 if category != chosen_category: continue
 
-                if max(int(x) for x in category_lengths if x != "NC") < 210:
-                    continue # skip 2x100 samples
+                #if max(int(x) for x in category_lengths if x != "NC") < 210:
+                #    continue # skip 2x100 samples
                 
                 for length, count in category_lengths.items():
                     if length != "NC":
                         length = int(length)
-                        if length > 300:
-                            # optimize graphs for comparision to 2x150
-                            length = "NC"
                     all_category_lengths[length] += count
     total_counts = sum(all_category_lengths.values())
     if total_counts < 100:
@@ -93,7 +90,8 @@ def populate_data(paper, samples, chosen_category):
 paper_samples = defaultdict(list)
 
 for paper in metadata_papers:
-    if not paper.startswith("Rothman"):
+    if metadata_papers[paper]["na_type"] in [
+            "DNA", "DNA+RNA", "RNA+DNA"]:
         continue
     
     paper_subset_samples = defaultdict(list)
@@ -106,8 +104,35 @@ for paper in metadata_papers:
             if metadata_samples[sample].get("enrichment", None) == "panel":
                 continue
 
-            paper_subset = metadata_samples[sample]["fine_location"]
-            paper_subset_samples[paper_subset].append(sample)
+            if metadata_samples[sample].get(
+                    "na_type", metadata_papers[paper]["na_type"]) != "RNA":
+                continue
+
+            if metadata_samples[sample].get(
+                    "collection", "wastewater") != "wastewater":
+                continue
+
+            if "airport" in metadata_samples[sample]:
+                continue
+
+            label = paper
+            if bioproject_to_s3_bucket[bioproject] == "nao-restricted":
+                continue
+
+            if "Rothman" in paper:
+                with gzip.open(
+                        "readlengths/%s.rl.json.gz" % sample, "rt") as inf:
+                    rls = json.load(inf)
+                    max_len = max(
+                        max([int(x) for x in lengths if x != "NC"],
+                             default=0)
+                         for lengths in rls.values())
+                    if max_len > 210:
+                        label += " 2x150"
+                    else:
+                        label += " 2x100"
+            
+            paper_subset_samples[label].append(sample)
     if missing:
         # Respond to missing data by hiding the whole paper's chart
         continue
@@ -119,16 +144,16 @@ for paper, samples in paper_samples.items():
     for category in "av":
         populate_data(paper, samples, chosen_category=category)
 
-ncols = 4
+ncols = 3
 nrows = math.ceil(len(data) / ncols)
 fig, axs = plt.subplots(constrained_layout=True,
                         sharex=True,
-                        figsize=(3*ncols, 3*nrows),
+                        figsize=(4*ncols, 4*nrows),
                         nrows=nrows,
                         ncols=ncols)
 fig.supxlabel("read length")
 fig.supylabel("percentage reads")
-fig.suptitle("Rothman Read Lengths by Site, All Reads vs Viral Reads")
+fig.suptitle("RNA Read Lengths by Paper, All Reads vs Viral Reads")
 
 for i, paper in enumerate(sorted(data)):
     ax = axs[i // ncols][i % ncols]
@@ -139,5 +164,5 @@ for i, paper in enumerate(sorted(data)):
         title.append("%s %s" % (category, label))
     ax.set_title("\n".join(title))
     ax.legend()
-fig.savefig("rothman-read-lengths-by-site-av.png", dpi=180)
+fig.savefig("rna-read-lengths.png", dpi=180)
 plt.clf()

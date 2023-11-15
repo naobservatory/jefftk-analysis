@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from collections import Counter, defaultdict
+from scipy.ndimage.filters import gaussian_filter1d
 
 bioproject_to_s3_bucket = {}
 MGS_PIPELINE_DIR="/Users/jeffkaufman/code/mgs-pipeline"
@@ -59,15 +60,12 @@ def populate_data(paper, samples, chosen_category):
             for category, category_lengths in json.load(inf).items():
                 if category != chosen_category: continue
 
-                if max(int(x) for x in category_lengths if x != "NC") < 210:
-                    continue # skip 2x100 samples
+                #if max(int(x) for x in category_lengths if x != "NC") < 210:
+                #    continue # skip 2x100 samples
                 
                 for length, count in category_lengths.items():
                     if length != "NC":
                         length = int(length)
-                        if length > 300:
-                            # optimize graphs for comparision to 2x150
-                            length = "NC"
                     all_category_lengths[length] += count
     total_counts = sum(all_category_lengths.values())
     if total_counts < 100:
@@ -92,22 +90,32 @@ def populate_data(paper, samples, chosen_category):
 
 paper_samples = defaultdict(list)
 
+colors = {}
+
 for paper in metadata_papers:
-    if not paper.startswith("Rothman"):
+    if "Yang" not in paper:
         continue
     
     paper_subset_samples = defaultdict(list)
     missing = False
+    location_counts = Counter()
     for bioproject in metadata_papers[paper]["projects"]:
-        for sample in metadata_bioprojects[bioproject]:
+        for sample in sorted(metadata_bioprojects[bioproject]):
             if not os.path.exists("readlengths/%s.rl.json.gz" % sample):
                 missing = True
 
-            if metadata_samples[sample].get("enrichment", None) == "panel":
-                continue
-
-            paper_subset = metadata_samples[sample]["fine_location"]
-            paper_subset_samples[paper_subset].append(sample)
+            location = metadata_samples[sample]["location"]
+            location_counts[location] += 1
+                
+            label = "%s-%s" % (
+                location, location_counts[location])
+                
+            paper_subset_samples[label].append(sample)
+            colors[label] = {
+                "Kashgar": "tab:blue",
+                "Hotan": "tab:orange",
+                "Mi-Dong": "tab:green",
+            }[location]
     if missing:
         # Respond to missing data by hiding the whole paper's chart
         continue
@@ -116,28 +124,35 @@ for paper in metadata_papers:
         paper_samples[paper_subset].extend(paper_subset_samples[paper_subset])
 
 for paper, samples in paper_samples.items():
-    for category in "av":
+    for category in "v":
         populate_data(paper, samples, chosen_category=category)
 
-ncols = 4
-nrows = math.ceil(len(data) / ncols)
-fig, axs = plt.subplots(constrained_layout=True,
-                        sharex=True,
-                        figsize=(3*ncols, 3*nrows),
-                        nrows=nrows,
-                        ncols=ncols)
+fig, ax = plt.subplots(constrained_layout=True,
+                       figsize=(10,8))
 fig.supxlabel("read length")
-fig.supylabel("percentage reads")
-fig.suptitle("Rothman Read Lengths by Site, All Reads vs Viral Reads")
+fig.supylabel("percentage of all viral reads")
+fig.suptitle("Yang 2020 Viral RNA Read Lengths")
 
+ax.yaxis.set_major_formatter(mtick.PercentFormatter())
 for i, paper in enumerate(sorted(data)):
-    ax = axs[i // ncols][i % ncols]
-    ax.yaxis.set_major_formatter(mtick.PercentFormatter())
-    title = [paper]
-    for category, (label, xs, ys) in sorted(data[paper].items()):
-        ax.plot(xs, ys, label=category)
-        title.append("%s %s" % (category, label))
-    ax.set_title("\n".join(title))
-    ax.legend()
-fig.savefig("rothman-read-lengths-by-site-av.png", dpi=180)
+    (label, xs, ys), = data[paper].values() # only one category
+    ax.plot(xs, ys, label=paper + " " + label, color=colors[paper])
+ax.legend()
+fig.savefig("rna-read-lengths-yang.png", dpi=180)
+plt.clf()
+
+fig, ax = plt.subplots(constrained_layout=True,
+                       figsize=(8,5))
+fig.supxlabel("read length")
+fig.supylabel("percentage of all viral reads")
+fig.suptitle("Yang 2020 Viral RNA Read Lengths")
+
+ax.yaxis.set_major_formatter(mtick.PercentFormatter())
+for i, paper in enumerate(sorted(data)):
+    (label, xs, ys), = data[paper].values() # only one category
+
+    ys_smooth = gaussian_filter1d(ys, sigma=5)
+    ax.plot(xs, ys_smooth, label=paper + " " + label, color=colors[paper])
+ax.legend()
+fig.savefig("rna-read-lengths-yang-smooth.png", dpi=180)
 plt.clf()
