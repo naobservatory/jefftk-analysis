@@ -3,10 +3,10 @@
 import os
 import json
 import math
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
-MGS_PIPELINE_DIR="/home/ec2-user/mgs-pipeline"
-MGS_RESTRICTED_DIR="/home/ec2-user/mgs-restricted"
+MGS_PIPELINE_DIR="/Users/jeffkaufman/code/mgs-pipeline"
+MGS_RESTRICTED_DIR="/Users/jeffkaufman/code/mgs-restricted"
 
 bioproject_to_s3_bucket = {}
 bioproject_to_dashboard_dir = {}
@@ -70,7 +70,7 @@ def process_sample(paper, bioproject, sample):
         with open(hvr_fname) as inf:
             hvr = json.load(inf)
 
-    als = {}
+    als = defaultdict(list)
     als_fname = os.path.join(
         dashboard_dir, "alignments", "%s.alignments.tsv" % sample)
     if os.path.exists(als_fname):
@@ -78,18 +78,17 @@ def process_sample(paper, bioproject, sample):
             for line in inf:
                 (read_id, genome, taxid, cigar, ref_start,
                  score, length) = line.rstrip("\n").split("\t")
-                als[read_id] = Alignment(
+                als[read_id].append(Alignment(
                     read_id,
                     genome,
                     int(taxid),
                     cigar,
                     int(ref_start),
                     int(score),
-                    int(length))
+                    int(length)))
 
     for al in als:
         assert al in hvr
-
 
     n_assigned_hv = 0
     n_aligned_hv = 0
@@ -100,11 +99,11 @@ def process_sample(paper, bioproject, sample):
         assigned_taxid = hvr[read_id][0]
 
         assigned_hv = assigned_taxid in human_viruses
-        aligned_hv = read_id in als and (
-            als[read_id].score / math.log(als[read_id].length) > 22)
-
-        #if assigned_hv != aligned_hv:
-        #    print(round(score), read_id, assigned_hv, aligned_hv, sep="\t")
+        aligned_hv = False
+        if read_id in als:
+            combined_score = sum(al.score for al in als[read_id])
+            combined_length = sum(al.length for al in als[read_id])
+            aligned_hv = combined_score / math.log(combined_length) > 22
 
         n_assigned_hv += int(assigned_hv)
         n_aligned_hv += int(aligned_hv)
