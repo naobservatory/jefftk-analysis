@@ -127,7 +127,7 @@ def process_sample(paper, bioproject, sample):
             if printed == 10:
                 break
 
-    for suffix in [".pair1.truncated", ".pair1.truncated", ".collapsed"]:
+    for suffix in [".pair1.truncated", ".pair2.truncated", ".collapsed"]:
         with open("%s%s" % (sample, suffix)) as inf:
             for (title, sequence, quality) in FastqGeneralIterator(inf):
                 read_id = title.split()[0]
