@@ -6,7 +6,7 @@ import subprocess
 results_fname = "/home/ec2-user/bowtie-n-threads.txt"
 
 while True:
-    for n_threads in range(1, 29):
+    for n_threads in range(1, 16):
         start = time.time()
 
         print("%s..." % n_threads)
