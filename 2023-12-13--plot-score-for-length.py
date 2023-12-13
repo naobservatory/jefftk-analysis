@@ -15,28 +15,31 @@ for is_hv in [True, False]:
 
     for sample in evaluations:
         for read_id in evaluations[sample]:
-            is_hv_val = evaluations[sample][read_id]["hv"]
-            notes = evaluations[sample][read_id][
-                "bowtie-on-kraken-unclassified"]
+            r = evaluations[sample][read_id]
+            if "hv" not in r:
+                continue
+
+            is_hv_val = r["hv"]
+            notes = r["bowtie-on-kraken-unclassified"]
             if "non-aligned" in notes:
                 continue
             #if "kraken_assigned_nonhv" in notes:
             #    continue
             if "human" in notes:
                 continue
-            
-            
+
+
             score = notes["hv_score"]
             length = notes["hv_length"]
-    
+
             if is_hv_val != is_hv:
                 continue
             if not notes.get("collapsed"):
                 continue
-            
+
             xs.append(length)
             ys.append(score)
-    
+
     ax.scatter(xs, ys,
                label="hv" if is_hv else "no",
                marker="x" if is_hv else ",")
@@ -58,9 +61,12 @@ uncollapsed_scores_by_is_hv = {
 
 for sample in evaluations:
     for read_id in evaluations[sample]:
-        is_hv_val = evaluations[sample][read_id]["hv"]
-        notes = evaluations[sample][read_id][
-            "bowtie-on-kraken-unclassified"]
+        r = evaluations[sample][read_id]
+        if "hv" not in r:
+            continue
+
+        is_hv_val = r["hv"]
+        notes = r["bowtie-on-kraken-unclassified"]
         if "non-aligned" in notes:
             continue
         score = notes["hv_score"]
@@ -68,7 +74,7 @@ for sample in evaluations:
 
         if notes.get("collapsed"):
             continue
-            
+
         uncollapsed_scores_by_is_hv[is_hv_val].append(score)
 
 uncollapsed_scores_by_is_hv[True].sort()
@@ -107,13 +113,13 @@ for is_hv in [True, False]:
     ax.scatter(xs, ys,
                label="hv" if is_hv else "no",
                marker="x" if is_hv else ",")
-    
+
 xs = [0, max(len(uncollapsed_scores_by_is_hv[True]),
              len(uncollapsed_scores_by_is_hv[False]))]
 ys = [best_cutoff, best_cutoff]
 ax.plot(xs, ys, label="div")
 ax.set_xlabel("length")
 ax.set_ylabel("y-axis is not meaningful")
-ax.legend()   
+ax.legend()
 plt.show()
 plt.clf()
