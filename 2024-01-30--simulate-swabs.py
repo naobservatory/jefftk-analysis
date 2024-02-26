@@ -39,7 +39,7 @@ def simulate_once(n_swabs):
     for _ in range(n_sick):
         reads, covid_reads = random.choice(LU_DATA)
         ra += covid_reads / reads
-    return ra / n_sick
+    return ra / n_swabs
 
 def simulate_many(n_simulations, n_swabs):
     RAs = []
