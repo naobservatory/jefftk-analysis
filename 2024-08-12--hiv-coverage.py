@@ -60,6 +60,16 @@ references = {
         [8557, 8666],
         [9067, 9181],
     ],
+    "pNHG-CapNM": [
+        [, ],
+        [, ],
+        [, ],
+        [, ],
+        [, ],
+        [, ],
+        [, ],
+        [, ],
+    ]
 }
 
 reads = []
@@ -87,9 +97,11 @@ aligner.internal_extend_gap_score = -2
 def align(qry, ref):
     return aligner.align(qry, ref)[0]
 
-ys_counter = Counter()
-read_mapper = defaultdict(set)
+studies = set()
+
+ys_counter = defaultdict(Counter)
 for fwd, rev, bits in reads:
+    study = bits[0]
     observed_positions = set()
     for read in [fwd, rev]:
         for (qry_beg, qry_end), (ref_beg, ref_end) in zip(
@@ -97,55 +109,38 @@ for fwd, rev, bits in reads:
             for i in range(ref_end - ref_beg + 1):
                 observed_positions.add(ref_beg + i)
     for observed_position in observed_positions:
-        ys_counter[observed_position] += 1
-        read_mapper[observed_position].add(bits)
+        studies.add(study)
+        ys_counter[study][observed_position] += 1
 
 import matplotlib.pyplot as plt
 
-segments = []
-xs = []
-ys = []
-segments.append((xs, ys))
-max_y = 0
 
-covered = set()
+study_segments = defaultdict(list)
+for study in studies:
+    xs = []
+    ys = []
+    study_segments[study].append((xs, ys))
 
-for reference in references.values():
-    for start, end_inclusive in reference:
-        # convert to zero indexing
-        start -= 1
-        end = end_inclusive
-        for i in range(start, end):
-            covered.add(i)
-        
-uncovered = set(range(len(reference_seq))) - covered
-        
-for x in range(len(reference_seq)):
-    if ys_counter[x]:
-        xs.append(x)
-        y = ys_counter[x]
-        max_y = max(max_y, y)
-        ys.append(y)
-    else:
-        if xs:
+    for x in range(len(reference_seq)):
+        if ys_counter[study][x]:
+            xs.append(x)
+            y = ys_counter[study][x]
+            ys.append(y)
+        elif xs:
             xs = []
             ys = []
-            segments.append((xs, ys))
+            study_segments[study].append((xs, ys))
 
-uncovered_reads = set()
-for uncovered_pos in uncovered:
-    uncovered_reads |= read_mapper.get(uncovered_pos, set())
-    
-for uncovered_read in sorted(uncovered_reads):
-    print(*uncovered_read, sep="\t")
-            
-fig, ax = plt.subplots(figsize=(12,6),
-                       nrows=2,
+fig, axs = plt.subplots(figsize=(12,(len(studies)+1)*2),
+                       nrows=1+len(studies),
                        ncols=1,
                        sharex=True)
-
-for xs, ys in segments:
-    ax[0].plot(xs, ys, color="blue")
+colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+for color, study, ax in zip(colors, sorted(studies), fig.axes):
+    ax.set_title(study)
+    ax.set_ylabel("Observations")
+    for xs, ys in study_segments[study]:
+        ax.plot(xs, ys, color=color)
 
 height = 1/len(references)
 colors = ["pink",
@@ -180,23 +175,21 @@ for i, (color, (label, regions)) in enumerate(
         start -= 1
         end_inclusive -= 1
 
-        ax[1].add_patch(plt.Rectangle(
+        axs[-1].add_patch(plt.Rectangle(
             (start, y_position),
             length,
             height, facecolor=color,
             edgecolor='black'))
 
         if length > 100 and individual_label:
-            ax[1].text(start + length/2, y_position + (height/2),
+            axs[-1].text(start + length/2, y_position + (height/2),
                     individual_label,
                     ha='center', va='center')
 
-ax[1].set_yticks(ticks)
-ax[1].set_yticklabels(labels)
+axs[-1].set_yticks(ticks)
+axs[-1].set_yticklabels(labels)
 
 fig.supxlabel("Position along AF033819.3 HIV-1 genome")
-ax[0].set_ylabel("Observations")
-
 fig.savefig("p2ra-hiv-coverage.png", dpi=180)
 
 plt.clf()
