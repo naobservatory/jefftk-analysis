@@ -60,23 +60,34 @@ references = {
         [8557, 8666],
         [9067, 9181],
     ],
-
+    "deletions": [
+        #[4674, 5269],
+        # [5858, 8341], This was wrong, ignore
+        [5857, 7168],
+    ],
 }
 
 reads = []
-with open("p2ra_hiv_reads.txt") as inf:
-    for line in inf:
-        bits = line.rstrip("\n").split("\t")
-        if bits[0] == "study_name":
-            continue
+for fname in ["p2ra_hiv_reads.txt", "additional.tsv"]:
+    with open(fname) as inf:
+        for line in inf:
+            bits = line.rstrip("\n").split("\t")
+            if bits[0] == "study_name":
+                continue
 
-        reads.append((bits[20], # fwd
-                      bits[21], # rev
-                      tuple(bits)))
+            reads.append((bits[20], # fwd
+                          bits[21], # rev
+                          tuple(bits)))
 
 with open("hiv.fasta") as inf:
     for title, reference_seq in SimpleFastaParser(inf):
         assert title == "AF033819.3 HIV-1, complete genome"
+
+def rc(s):
+    return "".join(
+        {"T": "A", "G": "C", "A": "T", "C": "G", "N": "N"}[x] for x
+        in reversed(s)
+    )
 
 aligner = Align.PairwiseAligner()
 aligner.end_gap_score = 0
@@ -88,20 +99,76 @@ aligner.internal_extend_gap_score = -2
 def align(qry, ref):
     return aligner.align(qry, ref)[0]
 
+def align_best_direction(qry, ref):
+    rc_qry = rc(qry)
+    alignment_fwd = align(qry, ref)
+    alignment_rev = align(rc_qry, ref)
+
+    if alignment_fwd.score < alignment_rev.score:
+        return alignment_rev
+    return alignment_fwd
+
 studies = set()
+
+def is_covered(ref_index, include_deletions=False):
+    for label, reference in references.items():
+        if (label == "deletions") != include_deletions:
+            continue
+
+        buffer_size = 50
+        if include_deletions:
+            buffer_size = 0
+        
+        for start, end in reference:
+            if start - buffer_size <= ref_index <= end + buffer_size:
+                return True
+    return False
+
+print("sample",
+      "read_id",
+      "fwd",
+      "rev",
+      "start_pos",
+      "end_pos",
+      sep="\t")
+
 
 ys_counter = defaultdict(Counter)
 for fwd, rev, bits in reads:
     study = bits[0]
     observed_positions = set()
+    is_uncovered = False
+    is_deleted = False
+    earliest_ref = None
+    latest_ref = None
     for read in [fwd, rev]:
         for (qry_beg, qry_end), (ref_beg, ref_end) in zip(
-                *align(read, reference_seq).aligned):
+                *align_best_direction(read, reference_seq).aligned):
+            if earliest_ref is None or earliest_ref > ref_beg:
+                earliest_ref = ref_beg
+            if latest_ref is None or latest_ref < ref_end:
+                latest_ref = ref_end
+
             for i in range(ref_end - ref_beg + 1):
-                observed_positions.add(ref_beg + i)
+                pos = ref_beg + i
+                if not is_covered(pos, include_deletions=False):
+                    is_uncovered = True
+                if is_covered(pos, include_deletions=True):
+                    is_deleted = True
+                observed_positions.add(pos)
     for observed_position in observed_positions:
         studies.add(study)
         ys_counter[study][observed_position] += 1
+
+    if ((is_uncovered and False) or
+        (is_deleted and True)):
+        print(bits[1], # sample
+              bits[2], # read
+              fwd,
+              "" if rev == fwd else rev,
+              earliest_ref,
+              latest_ref,
+              sep="\t")
 
 import matplotlib.pyplot as plt
 
@@ -150,6 +217,10 @@ ticks = []
 for i, (color, (label, regions)) in enumerate(
         zip(colors,
             sorted(references.items()))):
+    if label == "deletions":
+        color = "orangered"
+
+
     y_position = i / len(references)
     labels.append(label)
     ticks.append(y_position + height/2)
