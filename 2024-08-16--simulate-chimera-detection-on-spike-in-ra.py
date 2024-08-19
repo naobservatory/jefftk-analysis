@@ -11,9 +11,9 @@ concentrations = ["71k/mL", "7.1k/mL", "710/mL"]
 
 # concentration -> number of flagged reads at each of the four junctions
 flags =  {
-    "710/mL": [9, 1, 5, 7],
-    "7.1k/mL": [327, 75, 151, 184],
-    "71k/mL": [1097, 238, 508, 700],
+    "710/mL": [9, 1],
+    "7.1k/mL": [327, 75],
+    "71k/mL": [1097, 238],
 }
 
 depths = {
@@ -23,7 +23,7 @@ depths = {
 }
 
 spike_in_relative_abundance = {
-    "710/mL": 4e-5,
+    "710/mL": 3e-5,
     "7.1k/mL": 1e-4,
     "71k/mL": 3e-3,
 }
