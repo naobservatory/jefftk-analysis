@@ -481,6 +481,12 @@ def create_pileup_image(genome_name, genome_length, sorted_pairs, seed_positions
 
     return pairs_to_use
 
+def context_positions(positions, min_context):
+    if not min_context:
+        return positions
+
+    return positions[min_context:-min_context]
+
 def calculate_coverage(genome_length, sorted_pairs, min_context=0):
     """
     Calculate the coverage at each position along the genome.
@@ -502,32 +508,24 @@ def calculate_coverage(genome_length, sorted_pairs, min_context=0):
         # Get the observed positions from both reads
         observed_positions = set()
 
-        if read1 and read1['positions']:
-            observed_positions.update(read1['positions'])
+        if read1 and read2 and read1['positions'] and read2['positions'] and \
+           min(read2['positions']) < max(read1['positions']):
+            observed_positions = context_positions(
+                sorted(set(read1['positions'] + read2['positions'])),
+                min_context)
+        else:
+            if read1 and read1['positions']:
+                observed_positions.update(context_positions(
+                    read1['positions'], min_context))
 
-        if read2 and read2['positions']:
-            observed_positions.update(read2['positions'])
-
-        # If min_context > 0, only count positions with sufficient context
-        if min_context > 0:
-            positions_with_context = set()
-            for pos in observed_positions:
-                # Check if there are enough aligned positions around this position
-                context_count = 0
-                for i in range(max(0, pos - min_context), min(genome_length, pos + min_context + 1)):
-                    if i in observed_positions:
-                        context_count += 1
-
-                # If we have enough context, add this position
-                if context_count >= min_context:
-                    positions_with_context.add(pos)
-
-            observed_positions = positions_with_context
+            if read2 and read2['positions']:
+                observed_positions.update(context_positions(
+                    read2['positions'], min_context))
 
         # Increment coverage for each observed position
         for pos in observed_positions:
-            if 0 <= pos < genome_length:
-                coverage[pos] += 1
+            assert 0 <= pos < genome_length
+            coverage[pos] += 1
 
     return coverage
 
@@ -571,7 +569,7 @@ def create_coverage_plots(genome_name, genome_length, sorted_pairs, annotations,
     # Calculate coverage with different context requirements
     coverage_0bp = calculate_coverage(genome_length, pairs_to_use, min_context=0)
     coverage_25bp = calculate_coverage(genome_length, pairs_to_use, min_context=25)
-    coverage_75bp = calculate_coverage(genome_length, pairs_to_use, min_context=75)
+    coverage_50bp = calculate_coverage(genome_length, pairs_to_use, min_context=50)
 
     # Create figure with three subplots
     plt.figure(figsize=(15, 10))
@@ -612,17 +610,17 @@ def create_coverage_plots(genome_name, genome_length, sorted_pairs, annotations,
     # Add annotations to plot 2
     add_annotations_to_plot(ax2, genome_annotations, unique_annotations, coverage_25bp)
 
-    # Plot 3: Coverage with 75bp context
+    # Plot 3: Coverage with 50bp context
     ax3 = plt.subplot(gs[2])
-    ax3.plot(range(genome_length), coverage_75bp, 'r-', linewidth=1)
-    ax3.set_title(f"Coverage for {genome_name}{plot_title_suffix} (75bp context)")
+    ax3.plot(range(genome_length), coverage_50bp, 'r-', linewidth=1)
+    ax3.set_title(f"Coverage for {genome_name}{plot_title_suffix} (50bp context)")
     ax3.set_xlabel("Genome Position")
     ax3.set_ylabel("Read pairs")
     ax3.set_xlim(0, genome_length)
     ax3.grid(True, linestyle='--', alpha=0.7)
 
     # Add annotations to plot 3
-    add_annotations_to_plot(ax3, genome_annotations, unique_annotations, coverage_75bp)
+    add_annotations_to_plot(ax3, genome_annotations, unique_annotations, coverage_50bp)
 
     # Add a legend for annotations if there are any
     if unique_annotations:
